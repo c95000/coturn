@@ -34,6 +34,8 @@
 #if !defined(TURN_LOG_FUNC)
 //#define TURN_LOG_FUNC(level, ...) printf (__VA_ARGS__)
 #define TURN_LOG_FUNC turn_log_func_default
+#define TURN_LOG_BIN_FUNC turn_log_bin_func_default
+
 #endif
 
 #include "ns_turn_ioaddr.h"
@@ -64,6 +66,8 @@ void set_simple_log(int val);
 void turn_log_func_default(TURN_LOG_LEVEL level, const char* format, ...);
 
 void addr_debug_print(int verbose, const ioa_addr *addr, const char* s);
+
+void turn_log_bin_func_default(TURN_LOG_LEVEL level, const char* data, int len);
 
 /* Log */
 

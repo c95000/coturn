@@ -1976,9 +1976,37 @@ static int socket_readerr(evutil_socket_t fd, ioa_addr *orig_addr)
 typedef unsigned char recv_ttl_t;
 typedef unsigned char recv_tos_t;
 
+void udp_print_cmsg(struct msghdr* msg) {
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"--------------- begin -------------\n");
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"msg: %p\n", msg);
+
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"msg_name: %p len: %d\n", msg->msg_name, msg->msg_namelen);
+	TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)msg->msg_name, msg->msg_namelen);
+
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"msg_iov: %p len: %d\n", msg->msg_iov, msg->msg_iovlen);
+	TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)msg->msg_iov, msg->msg_iovlen);
+
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"msg_control: %p len: %d\n", msg->msg_control, msg->msg_controllen);
+	TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)msg->msg_control, msg->msg_controllen);
+
+	struct cmsghdr *cmsgh;
+
+	// Receive auxiliary data in msg
+	int i = 0;
+	for (cmsgh = CMSG_FIRSTHDR(msg); cmsgh != NULL; cmsgh
+					= CMSG_NXTHDR(msg, cmsgh)) {
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"cmsgh[%d]: %p \n", i++, cmsgh);
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"cmsg_len: %d level: %d type: %d data: %p\n", cmsgh->cmsg_len, cmsgh->cmsg_level, cmsgh->cmsg_type, CMSG_DATA(cmsgh));
+		TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)CMSG_DATA(cmsgh), cmsgh->cmsg_len);
+	}
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"--------------- end -------------\n");
+}
+
 int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_addr, char* buffer, int buf_size, int *ttl, int *tos, char *ecmsg, int flags, uint32_t *errcode)
 {
 	int len = 0;
+
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"\n\n\nL:%d udp_recvfrom fd %d enter\n", __LINE__, fd);
 
 	if (fd < 0 || !orig_addr || !like_addr || !buffer)
 		return -1;
@@ -1993,6 +2021,12 @@ int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_a
 #if !defined(CMSG_SPACE)
 	do {
 	  len = recvfrom(fd, buffer, buf_size, flags, (struct sockaddr*) orig_addr, (socklen_t*) &slen);
+	  TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d len:%d\n",
+			__LINE__, fd, flags, len);
+		
+	  TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)orig_addr, slen);
+	  TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)buffer, len);
+
 	} while (len < 0 && (errno == EINTR));
 	if(len<0 && errcode)
 		*errcode = (uint32_t)errno;
@@ -2021,11 +2055,22 @@ int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_a
 
 	do {
 		len = recvmsg(fd,&msg,flags);
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d flag:0x%x len:%d errno:%s(%d)\n",
+			__LINE__, fd, flags, len, strerror(errno), errno);
+		
+		TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)&msg, len);
+		
+		if(len >= 0) {
+			udp_print_cmsg(&msg);
+		}
+
 	} while (len < 0 && (errno == EINTR));
 
 #if defined(MSG_ERRQUEUE)
 
 	if(flags & MSG_ERRQUEUE) {
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d should not come here\n",
+			__LINE__, fd);
 			if((len>0)&&(try_cycle++<MAX_ERRORS_IN_UDP_BATCH)) goto try_again;
 	}
 
@@ -2037,6 +2082,13 @@ int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_a
 		//try again...
 		do {
 			len = recvmsg(fd,&msg,flags);
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d flag:0x%x len:%d errno:%s(%d)\n",
+				__LINE__, fd, flags, len, strerror(errno), errno);
+			TURN_LOG_BIN_FUNC(TURN_LOG_LEVEL_INFO, (char*)&msg, len);
+		
+			if(len >= 0) {
+				udp_print_cmsg(&msg);
+			}
 		} while (len < 0 && (errno == EINTR));
 	}
 #endif
@@ -2048,8 +2100,11 @@ int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_a
 		// Receive auxiliary data in msg
 		for (cmsgh = CMSG_FIRSTHDR(&msg); cmsgh != NULL; cmsgh
 						= CMSG_NXTHDR(&msg,cmsgh)) {
+
 			int l = cmsgh->cmsg_level;
 			int t = cmsgh->cmsg_type;
+
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d l:%d t:%d\n", __LINE__, fd, l, t);
 
 			switch(l) {
 			case IPPROTO_IP:
@@ -2058,12 +2113,14 @@ int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_a
 				case IP_RECVTTL:
 				case IP_TTL:
 					recv_ttl = *((recv_ttl_t *) CMSG_DATA(cmsgh));
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d recv_ttl:%d\n", __LINE__, fd, recv_ttl);
 					break;
 #endif
 #if defined(IP_RECVTOS)
 				case IP_RECVTOS:
 				case IP_TOS:
 					recv_tos = *((recv_tos_t *) CMSG_DATA(cmsgh));
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d recv_tos:%d\n", __LINE__, fd, recv_tos);
 					break;
 #endif
 #if defined(IP_RECVERR)
@@ -2124,6 +2181,8 @@ int udp_recvfrom(evutil_socket_t fd, ioa_addr* orig_addr, const ioa_addr *like_a
 	*tos = recv_tos;
 
 	CORRECT_RAW_TOS(*tos);
+
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"L:%d udp_recvfrom fd %d return\n\n\n\n", __LINE__, fd);
 
 	return len;
 }

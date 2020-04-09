@@ -488,6 +488,8 @@ static int create_new_connected_udp_socket(
 		return -1;
 	}
 
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"create_new_connected_udp_socket udp_listen_fd %d server:%p\n",udp_fd, server);
+
 	if (sock_bind_to_device(udp_fd, (unsigned char*) (s->e->relay_ifname))
 			< 0) {
 		TURN_LOG_FUNC(TURN_LOG_LEVEL_ERROR,
@@ -622,6 +624,8 @@ static void udp_server_input_handler(evutil_socket_t fd, short what, void* arg)
 {
 	int cycle = 0;
 
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"udp_server_input_handler fd %d what:0x%x arg:%p\n",fd, what, arg);
+
 	dtls_listener_relay_server_type* server = (dtls_listener_relay_server_type*)arg;
 	ioa_socket_handle s = server->udp_listen_s;
 
@@ -658,6 +662,8 @@ static void udp_server_input_handler(evutil_socket_t fd, short what, void* arg)
 	int conn_reset = is_connreset();
 	int to_block = would_block();
 
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"udp_server_input_handler->udp_recvfrom fd %d bsize:%d conn_reset:%d to_block:%d\n",fd, bsize, conn_reset, to_block);
+
 	if (bsize < 0) {
 
 		if(to_block) {
@@ -668,7 +674,6 @@ static void udp_server_input_handler(evutil_socket_t fd, short what, void* arg)
 		}
 
 	#if defined(MSG_ERRQUEUE)
-
 		//Linux
 		int eflags = MSG_ERRQUEUE | MSG_DONTWAIT;
 		static char buffer[65535];
@@ -719,6 +724,7 @@ static void udp_server_input_handler(evutil_socket_t fd, short what, void* arg)
 		if(server->connect_cb) {
 
 			rc = create_new_connected_udp_socket(server, s);
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "udp_server_input_handler create_new_connected_udp_socket rc: %d\n");
 			if(rc<0) {
 				TURN_LOG_FUNC(TURN_LOG_LEVEL_ERROR, "Cannot handle UDP packet, size %d\n",(int)bsize);
 			}
@@ -762,6 +768,8 @@ static int create_server_socket(dtls_listener_relay_server_type* server, int rep
 		  perror("socket");
 		  return -1;
 	  }
+
+	  TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"create_server_socket udp_listen_fd %d server:%p\n",udp_listen_fd, server);
 
 	  server->udp_listen_s = create_ioa_socket_from_fd(server->e, udp_listen_fd, NULL, UDP_SOCKET, LISTENER_SOCKET, NULL, &(server->addr));
 
@@ -842,6 +850,8 @@ static int reopen_server_socket(dtls_listener_relay_server_type* server, evutil_
 			FUNCEND;
 			return -1;
 		}
+
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,"reopen_server_socket udp_listen_fd %d server:%p\n",udp_listen_fd, server);
 
 		server->udp_listen_s->fd = udp_listen_fd;
 

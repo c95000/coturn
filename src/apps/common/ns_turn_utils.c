@@ -227,6 +227,39 @@ void addr_debug_print(int verbose, const ioa_addr *addr, const char* s)
 	}
 }
 
+void turn_log_bin_func_default(TURN_LOG_LEVEL level, const char* data, int len)
+{
+	if(len < 0) {
+		turn_log_func_default(level, "len < 0\n");
+		return;
+	}
+
+	unsigned char* dd = data;
+
+	/*for(int i = 0; i < len; i++) {
+		turn_log_func_default(level, "%02x ", dd[i]);
+	}*/
+
+	for(int i = 0; i < len; i += 8) {
+		char buffer[128];
+		if(i + 8 <= len) {
+			sprintf(buffer, " %02x %02x %02x %02x %02x %02x %02x %02x", 
+				dd[i + 0], dd[i + 1], dd[i + 2], dd[i + 3],
+				dd[i + 4], dd[i + 5], dd[i + 6], dd[i + 7]);
+		} else {
+			int left = len - i;
+			memset(buffer, 0, sizeof(buffer));
+			for(int j = 0; j < left; j++) {
+				sprintf(buffer, "%s %02x", 
+					buffer, dd[i + j]);
+			}
+		}
+
+		turn_log_func_default(level, "%s\n", buffer);
+	}
+}
+
+
 /*************************************/
 
 #define FILE_STR_LEN (1025)
