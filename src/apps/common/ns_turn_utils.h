@@ -36,6 +36,9 @@
 #define TURN_LOG_FUNC turn_log_func_default
 #define TURN_LOG_BIN_FUNC turn_log_bin_func_default
 
+#define TURN_LOG_FUNC_BEGIN TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "L:%d %s() begin\n", __LINE__, __FUNCTION__)
+#define TURN_LOG_FUNC_END TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "L:%d %s() end\n", __LINE__, __FUNCTION__)
+
 #endif
 
 #include "ns_turn_ioaddr.h"
