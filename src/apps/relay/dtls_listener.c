@@ -327,6 +327,7 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 				struct message_to_relay *sm,
 				ioa_engine_handle ioa_eng, turn_turnserver *ts)
 {
+	TURN_LOG_FUNC_BEGIN;
 	int verbose = ioa_eng->verbose;
 	ioa_socket_handle s = sm->m.sm.s;
 
@@ -468,11 +469,13 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 			s->e = ioa_eng;
 			add_socket_to_map(s, amap);
 			if(open_client_connection_session(ts, &(sm->m.sm))<0) {
+				TURN_LOG_FUNC_END;
 				return -1;
 			}
 		}
 	}
 
+	TURN_LOG_FUNC_END;
 	return 0;
 }
 

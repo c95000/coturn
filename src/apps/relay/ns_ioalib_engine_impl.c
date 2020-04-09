@@ -1732,30 +1732,39 @@ void set_ioa_socket_app_type(ioa_socket_handle s, SOCKET_APP_TYPE sat) {
 ioa_addr* get_local_addr_from_ioa_socket(ioa_socket_handle s)
 {
 	if (s && (s->magic == SOCKET_MAGIC) && !(s->done)) {
-
+		
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: s:%p s:%p\n", __FUNCTION__, s, s->parent_s);
 		if(s->parent_s) {
 			s = s->parent_s;
 		}
 
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: fd:%d local_addr_known:%d bound:%d port:%d\n", __FUNCTION__, s->fd, s->local_addr_known, s->bound, addr_get_port(&(s->local_addr)));
 		if (s->local_addr_known) {
 			return &(s->local_addr);
 		} else if (s->bound && (addr_get_port(&(s->local_addr)) > 0)) {
 			s->local_addr_known = 1;
 			return &(s->local_addr);
 		} else {
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 1\n", __FUNCTION__);
 			ioa_addr tmpaddr;
 			if (addr_get_from_sock(s->fd, &tmpaddr) == 0) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 2\n", __FUNCTION__);
 				if(addr_get_port(&tmpaddr)>0) {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 3\n", __FUNCTION__);
 					s->local_addr_known = 1;
 					s->bound = 1;
 					if(addr_any(&(s->local_addr))) {
+						TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 4\n", __FUNCTION__);
 						addr_cpy(&(s->local_addr),&tmpaddr);
 					} else {
+						TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 5\n", __FUNCTION__);
 						addr_set_port(&(s->local_addr),addr_get_port(&tmpaddr));
 					}
 					return &(s->local_addr);
 				}
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 6\n", __FUNCTION__);
 				if(addr_any(&(s->local_addr))) {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: -- 7\n", __FUNCTION__);
 					addr_cpy(&(s->local_addr),&tmpaddr);
 				}
 				return &(s->local_addr);
@@ -1768,8 +1777,8 @@ ioa_addr* get_local_addr_from_ioa_socket(ioa_socket_handle s)
 
 ioa_addr* get_remote_addr_from_ioa_socket(ioa_socket_handle s)
 {
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: s:%p done:%d connected:%d\n", __FUNCTION__, s, s->done, s->connected);
 	if (s && (s->magic == SOCKET_MAGIC) && !(s->done)) {
-
 		if (s->connected) {
 			return &(s->remote_addr);
 		}
