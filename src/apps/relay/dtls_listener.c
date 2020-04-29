@@ -331,6 +331,9 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 	int verbose = ioa_eng->verbose;
 	ioa_socket_handle s = sm->m.sm.s;
 
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,
+					"%s: L:%d server->children_ss:%p\n", __FUNCTION__, __LINE__, server->children_ss);
+
 	ur_addr_map_value_type mvt = 0;
 	if(!(server->children_ss)) {
 		server->children_ss = (ur_addr_map*)allocate_super_memory_engine(server->e, sizeof(ur_addr_map));
@@ -343,23 +346,34 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 		chs = (ioa_socket_handle) mvt;
 	}
 
+	//TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d chs:%p ioa_socket_tobeclosed:%d sockets_container:%p amap:%p %d\n", __FUNCTION__, __LINE__, 
+	//				chs, ioa_socket_tobeclosed(chs), chs->sockets_container, amap, (int)(chs->magic));
+
 	if (chs && !ioa_socket_tobeclosed(chs)
 			&& (chs->sockets_container == amap)
 			&& (chs->magic == SOCKET_MAGIC)) {
 		s = chs;
 		sm->m.sm.s = s;
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,
+					"%s: L:%d s->ssl:%p\n", __FUNCTION__, __LINE__, s->ssl);
 		if(s->ssl) {
 			int sslret = ssl_read(s->fd, s->ssl, sm->m.sm.nd.nbh, verbose);
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO,
+					"%s: L:%d sslret:%d\n", __FUNCTION__, __LINE__, sslret);
 			if(sslret < 0) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 				ioa_network_buffer_delete(ioa_eng, sm->m.sm.nd.nbh);
 				sm->m.sm.nd.nbh = NULL;
 				ts_ur_super_session *ss = (ts_ur_super_session *) s->session;
 				if (ss) {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 					turn_turnserver *server = (turn_turnserver *) ss->server;
 					if (server) {
+						TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 						shutdown_client_connection(server, ss, 0, "SSL read error");
 					}
 				} else {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 					close_ioa_socket(s);
 				}
 				ur_addr_map_del(amap, &(sm->m.sm.nd.src_addr), NULL);
@@ -367,25 +381,32 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 				s = NULL;
 				chs = NULL;
 			} else if(ioa_network_buffer_get_size(sm->m.sm.nd.nbh)>0) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 				;
 			} else {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 				ioa_network_buffer_delete(ioa_eng, sm->m.sm.nd.nbh);
 				sm->m.sm.nd.nbh = NULL;
 			}
 		}
 
 		if(s && ioa_socket_check_bandwidth(s,sm->m.sm.nd.nbh,1)) {
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 			s->e = ioa_eng;
 			if (s && s->read_cb && sm->m.sm.nd.nbh) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 				s->read_cb(s, IOA_EV_READ, &(sm->m.sm.nd), s->read_ctx, 1);
 				ioa_network_buffer_delete(ioa_eng, sm->m.sm.nd.nbh);
 				sm->m.sm.nd.nbh = NULL;
 
 				if (ioa_socket_tobeclosed(s)) {
+					TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 					ts_ur_super_session *ss = (ts_ur_super_session *) s->session;
 					if (ss) {
+						TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 						turn_turnserver *server = (turn_turnserver *) ss->server;
 						if (server) {
+							TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 							shutdown_client_connection(server, ss, 0, "UDP packet processing error");
 						}
 					}
@@ -397,6 +418,7 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 			TURN_LOG_FUNC(TURN_LOG_LEVEL_ERROR,
 					"%s: socket to be closed\n", __FUNCTION__);
 			{
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 				uint8_t saddr[129];
 				uint8_t rsaddr[129];
 				long thrid = (long) pthread_self();
@@ -441,6 +463,7 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 		if (!turn_params.no_dtls &&
 			is_dtls_handshake_message(ioa_network_buffer_data(sm->m.sm.nd.nbh),
 			(int)ioa_network_buffer_get_size(sm->m.sm.nd.nbh))) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 			chs = dtls_server_input_handler(server,s, sm->m.sm.nd.nbh);
 			ioa_network_buffer_delete(server->e, sm->m.sm.nd.nbh);
 			sm->m.sm.nd.nbh = NULL;
@@ -448,15 +471,19 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 #endif
 
 		if(!chs) {
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d s:%p\n", __FUNCTION__, __LINE__, s);
 			chs = create_ioa_socket_from_fd(ioa_eng, s->fd, s,
 				UDP_SOCKET, CLIENT_SOCKET, &(sm->m.sm.nd.src_addr),
 				get_local_addr_from_ioa_socket(s));
 		}
 
+		TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d s:%p chs:%p\n", __FUNCTION__, __LINE__, s, chs);
+
 		s = chs;
 		sm->m.sm.s = s;
 
 		if (s) {
+			TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 			if(verbose) {
 				uint8_t saddr[129];
 				uint8_t rsaddr[129];
@@ -469,6 +496,7 @@ static int handle_udp_packet(dtls_listener_relay_server_type *server,
 			s->e = ioa_eng;
 			add_socket_to_map(s, amap);
 			if(open_client_connection_session(ts, &(sm->m.sm))<0) {
+				TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "%s: L:%d\n", __FUNCTION__, __LINE__);
 				TURN_LOG_FUNC_END;
 				return -1;
 			}

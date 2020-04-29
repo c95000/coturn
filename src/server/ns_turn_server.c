@@ -4694,7 +4694,11 @@ static int attach_socket_to_session(turn_turnserver* server, ioa_socket_handle s
 int open_client_connection_session(turn_turnserver* server,
 				struct socket_message *sm) {
 
+	TURN_LOG_FUNC_BEGIN;
 	FUNCSTART;
+
+	TURN_LOG_FUNC(TURN_LOG_LEVEL_INFO, "server:%p sm->s:%p server->verbos:%d\n", server, sm->s, server->verbose);
+
 	if (!server)
 		return -1;
 
@@ -4729,7 +4733,7 @@ int open_client_connection_session(turn_turnserver* server,
 	}
 
 	FUNCEND;
-
+	TURN_LOG_FUNC_END;
 	return 0;
 }
 
